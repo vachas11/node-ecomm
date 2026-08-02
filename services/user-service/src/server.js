@@ -5,7 +5,9 @@ const cors = require('cors');
 const logger = require('../../../shared/logger');
 const { errorHandler } = require('../../../shared/errors');
 const { db, initDatabase } = require('./config/database');
+const redisClient = require('../../../shared/redis');
 const authRoutes = require('./routes/auth.routes');
+const internalRoutes = require('./routes/internal.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,6 +42,9 @@ app.get('/health', async (req, res) => {
 
     const dbStats = db.getStats();
 
+    // Check Redis connection
+    const redisHealthy = await redisClient.ping();
+
     res.json({
       status: 'healthy',
       service: 'user-service',
@@ -48,6 +53,9 @@ app.get('/health', async (req, res) => {
       database: {
         status: 'connected',
         pool: dbStats
+      },
+      redis: {
+        status: redisHealthy ? 'connected' : 'disconnected'
       }
     });
   } catch (error) {
@@ -63,6 +71,7 @@ app.get('/health', async (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/internal', internalRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -89,7 +98,10 @@ const gracefulShutdown = async (signal) => {
     // Close database pool
     await db.close();
 
-    logger.info('Database connections closed');
+    // Close Redis connection
+    await redisClient.disconnect();
+
+    logger.info('All connections closed');
     process.exit(0);
   });
 
@@ -107,6 +119,10 @@ const startServer = async () => {
     // Initialize database
     await initDatabase();
     logger.info('Database initialized');
+
+    // Initialize Redis
+    await redisClient.connect();
+    logger.info('Redis connected');
 
     // Start HTTP server
     server = app.listen(PORT, () => {

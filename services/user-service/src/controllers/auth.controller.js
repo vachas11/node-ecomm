@@ -1,6 +1,8 @@
+const crypto = require('crypto');
 const { db } = require('../config/database');
 const { hashPassword, comparePassword, validatePasswordStrength } = require('../utils/password');
-const { generateTokenPair } = require('../utils/jwt');
+const { generateTokenPair, verifyRefreshToken, decodeTokenUnsafe, getTokenTTL } = require('../../../../shared/auth/jwt');
+const { addToBlacklist } = require('../../../../shared/auth/blacklist');
 const {
   ValidationError,
   UnauthorizedError,
@@ -45,6 +47,17 @@ const register = asyncHandler(async (req, res) => {
 
   // Generate tokens
   const tokens = generateTokenPair(user);
+
+  // Store refresh token in database
+  const tokenHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+  const refreshDecoded = decodeTokenUnsafe(tokens.refreshToken);
+  const expiresAt = new Date(refreshDecoded.exp * 1000);
+
+  await db.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [user.id, tokenHash, expiresAt]
+  );
 
   logger.info('User registered successfully', { userId: user.id, email: user.email });
 
@@ -93,6 +106,17 @@ const login = asyncHandler(async (req, res) => {
 
   // Generate tokens
   const tokens = generateTokenPair(user);
+
+  // Store refresh token in database
+  const tokenHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+  const refreshDecoded = decodeTokenUnsafe(tokens.refreshToken);
+  const expiresAt = new Date(refreshDecoded.exp * 1000);
+
+  await db.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [user.id, tokenHash, expiresAt]
+  );
 
   logger.info('User logged in successfully', { userId: user.id, email: user.email });
 
@@ -255,10 +279,176 @@ const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
+// Helper function to hash refresh tokens before storing
+const hashToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
+
+// Helper function to store refresh token in database
+const storeRefreshToken = async (userId, refreshToken) => {
+  const tokenHash = hashToken(refreshToken);
+  const decoded = decodeTokenUnsafe(refreshToken);
+  const expiresAt = new Date(decoded.exp * 1000);
+
+  await db.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userId, tokenHash, expiresAt]
+  );
+};
+
+// Refresh token endpoint
+const refresh = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    throw new ValidationError('Refresh token is required');
+  }
+
+  // Verify refresh token signature and expiry
+  const decoded = verifyRefreshToken(refreshToken);
+  const tokenHash = hashToken(refreshToken);
+
+  // Check if token exists in database
+  const tokenResult = await db.query(
+    `SELECT user_id FROM refresh_tokens
+     WHERE token_hash = $1 AND expires_at > NOW()`,
+    [tokenHash]
+  );
+
+  if (tokenResult.rows.length === 0) {
+    // Token not found or expired
+    // This could indicate token reuse (security breach)
+    logger.warn('Refresh token not found in database - possible reuse attempt', {
+      userId: decoded.userId,
+      jti: decoded.jti
+    });
+
+    // Revoke ALL user tokens as a security measure
+    await db.query(
+      'DELETE FROM refresh_tokens WHERE user_id = $1',
+      [decoded.userId]
+    );
+
+    throw new UnauthorizedError('Invalid refresh token. Please login again.');
+  }
+
+  // Get user data
+  const userResult = await db.query(
+    `SELECT id, email, first_name, last_name, role, is_active
+     FROM users WHERE id = $1`,
+    [decoded.userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new UnauthorizedError('User not found');
+  }
+
+  const user = userResult.rows[0];
+
+  if (!user.is_active) {
+    throw new UnauthorizedError('Account is deactivated');
+  }
+
+  // Generate new token pair (TOKEN ROTATION)
+  const newTokens = generateTokenPair(user);
+
+  // Delete old refresh token
+  await db.query(
+    'DELETE FROM refresh_tokens WHERE token_hash = $1',
+    [tokenHash]
+  );
+
+  // Store new refresh token
+  await storeRefreshToken(user.id, newTokens.refreshToken);
+
+  logger.info('Token refreshed successfully', {
+    userId: user.id,
+    oldJti: decoded.jti
+  });
+
+  res.json({
+    success: true,
+    data: {
+      tokens: newTokens
+    }
+  });
+});
+
+// Logout endpoint (single device)
+const logout = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body;
+  const accessToken = req.token; // Attached by authenticate middleware
+  const userId = req.user.userId;
+  const jti = req.user.jti;
+
+  // Add access token to blacklist
+  const ttl = getTokenTTL(accessToken);
+  if (ttl > 0) {
+    await addToBlacklist(jti, ttl);
+  }
+
+  // Delete refresh token from database if provided
+  if (refreshToken) {
+    const tokenHash = hashToken(refreshToken);
+    await db.query(
+      'DELETE FROM refresh_tokens WHERE token_hash = $1 AND user_id = $2',
+      [tokenHash, userId]
+    );
+  }
+
+  logger.info('User logged out', {
+    userId,
+    jti: jti.substring(0, 8) + '...'
+  });
+
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+});
+
+// Logout all devices
+const logoutAll = asyncHandler(async (req, res) => {
+  const userId = req.user.userId;
+  const currentJti = req.user.jti;
+
+  // Delete ALL refresh tokens for this user
+  const result = await db.query(
+    'DELETE FROM refresh_tokens WHERE user_id = $1 RETURNING token_hash',
+    [userId]
+  );
+
+  const deletedCount = result.rows.length;
+
+  // Blacklist current access token
+  const accessToken = req.token;
+  const ttl = getTokenTTL(accessToken);
+  if (ttl > 0) {
+    await addToBlacklist(currentJti, ttl);
+  }
+
+  logger.info('User logged out from all devices', {
+    userId,
+    devicesLoggedOut: deletedCount
+  });
+
+  res.json({
+    success: true,
+    message: `Logged out from all devices (${deletedCount} devices)`,
+    data: {
+      devicesLoggedOut: deletedCount
+    }
+  });
+});
+
 module.exports = {
   register,
   login,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  refresh,
+  logout,
+  logoutAll
 };
