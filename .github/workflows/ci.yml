@@ -1,0 +1,318 @@
+name: CI
+
+# MAANG Interview: Why separate CI and CD?
+# CI = Continuous Integration (merge code safely)
+# CD = Continuous Deployment (deploy to production)
+# Separating them allows:
+# - CI runs on every PR (fast feedback)
+# - CD only runs on main branch (controlled deployments)
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+# Q: Why run on both pull_request and push?
+# A: pull_request = Test before merging (catch issues early)
+#    push = Test after merging (ensure main branch is healthy)
+
+jobs:
+  # Job 1: Type Check (TypeScript compilation)
+  # Q: Why type-check as a SEPARATE job?
+  # A: Fail fast strategy:
+  #    - Type errors are quick to find (< 1 minute)
+  #    - If types fail, no point running tests (saves 5+ minutes)
+  #    - Parallel execution: runs alongside lint job
+  type-check:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # Q: Why actions/checkout@v4?
+        # A: Fetches your code into the GitHub Actions runner.
+        #    v4 is latest (faster, better cache support than v3)
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+        # Q: What does cache: 'npm' do?
+        # A: Caches node_modules between runs.
+        #    Without cache: npm ci takes 2-3 minutes
+        #    With cache: npm ci takes 10-20 seconds
+        #    HUGE time saver for CI pipeline
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+        # Q: Why 'npm ci' instead of 'npm install'?
+        # A: npm ci (clean install):
+        #    - Deletes node_modules first (fresh install)
+        #    - Uses package-lock.json exactly (reproducible)
+        #    - Faster than 'npm install' (optimized for CI)
+        #    - Fails if package.json and package-lock.json don't match
+        # Interview Tip: "I use npm ci in CI/CD for reproducibility"
+
+      - name: Type check all services
+        run: npm run type-check
+        # Q: What happens if type-check fails?
+        # A: Job exits with error code → GitHub shows red X → PR blocked
+        #    Developer must fix type errors before merge
+
+  # Job 2: Linting (code quality)
+  # Q: Why separate lint from type-check?
+  # A: Parallel execution - both run simultaneously (faster CI)
+  lint:
+    name: ESLint & Prettier
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+
+      - name: Run ESLint
+        run: npm run lint
+        # Q: What does ESLint check?
+        # A: Code quality issues:
+        #    - Unused variables
+        #    - Console.logs in production
+        #    - Implicit 'any' types
+        #    - Missing return types
+        # Interview Tip: "ESLint catches bugs that TypeScript misses"
+
+      - name: Check Prettier formatting
+        run: npm run format:check
+        # Q: Why Prettier AND ESLint?
+        # A: Different purposes:
+        #    - ESLint = Code quality (bugs, best practices)
+        #    - Prettier = Code formatting (spaces, semicolons)
+        # Interview Tip: "I use ESLint for quality, Prettier for style"
+
+  # Job 3: Unit & Integration Tests
+  # Q: Why test on MULTIPLE Node versions?
+  # A: Forward compatibility:
+  #    - Dev machines use Node 20
+  #    - Production might use Node 18 (LTS)
+  #    - Testing both ensures code works everywhere
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    # Matrix strategy: Runs job TWICE (once per Node version)
+    # Q: What's a matrix strategy?
+    # A: Runs same job with different parameters.
+    #    Here: 2 jobs run in parallel (Node 18 and Node 20)
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    # GitHub Actions Services = Docker containers for tests
+    # Q: Why use GitHub Actions services?
+    # A: Integration tests need REAL databases:
+    #    Option 1: Mock database → Fast but misses real bugs
+    #    Option 2: External DB → Shared state, flaky tests
+    #    Option 3: GitHub services → Real DB, isolated, fast ✅
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        # Health checks: Wait for PostgreSQL to be ready
+        # Q: Why health checks?
+        # A: PostgreSQL takes 5-10 seconds to start.
+        #    Without health check: Tests start → DB not ready → Tests fail
+        #    With health check: Tests wait → DB ready → Tests pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+
+      # Q: Why build BEFORE running tests?
+      # A: TypeScript must be compiled to JavaScript first.
+      #    Tests run against compiled .js files in dist/, not .ts files.
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run tests with coverage
+        run: npm test
+        env:
+          # Environment variables for tests
+          NODE_ENV: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          # Test secrets (not real secrets, safe to commit)
+          JWT_SECRET: test-secret-32-characters-min-length
+          JWT_REFRESH_SECRET: test-refresh-secret-32-chars-length
+        # Q: Why different secrets for tests?
+        # A: Test secrets are public (in this file).
+        #    Production secrets are in GitHub Secrets (encrypted).
+
+      # Upload test coverage to Codecov
+      # Q: What's Codecov?
+      # A: Service that tracks code coverage over time.
+      #    Shows: "Your PR decreased coverage by 5%" → Warning!
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          fail_ci_if_error: true
+        # Q: Why fail_ci_if_error: true?
+        # A: If coverage upload fails, fail the build.
+        #    Ensures coverage is always tracked.
+
+  # Job 4: Security Audit
+  # Q: What security issues can npm audit find?
+  # A: Known vulnerabilities in dependencies:
+  #    - SQL injection in pg < 8.0.0
+  #    - XSS in express < 4.17.0
+  #    - Prototype pollution in lodash < 4.17.19
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Q: Why npm audit BEFORE installing?
+      # A: npm audit checks package-lock.json (fast).
+      #    No need to install node_modules first.
+      - name: npm audit (all dependencies)
+        run: npm audit --audit-level=moderate
+        # Q: What's --audit-level=moderate?
+        # A: Severity levels: low, moderate, high, critical
+        #    moderate = Fail on moderate+ (high + critical)
+        #    Interview Tip: "I set moderate threshold - low severity
+        #                    vulnerabilities rarely affect production"
+
+      - name: npm audit (production only)
+        run: npm audit --production
+        # Q: Why separate production audit?
+        # A: Dev dependencies (Jest, ESLint) don't run in production.
+        #    Vulnerability in Jest? Not a production risk.
+        #    This audit checks ONLY production dependencies.
+
+  # Job 5: Docker Build Test
+  # Q: Why test Docker builds in CI?
+  # A: Catches issues before production:
+  #    - Missing files in .dockerignore
+  #    - Wrong paths in COPY commands
+  #    - Build failures due to missing dependencies
+  docker:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        # Q: What's Docker Buildx?
+        # A: Enhanced Docker build with:
+        #    - BuildKit backend (faster builds)
+        #    - Multi-platform builds (ARM, x86)
+        #    - Build caching (GitHub Actions cache)
+
+      - name: Build API Gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/api-gateway
+          file: ./services/api-gateway/Dockerfile
+          push: false  # Don't push to registry, just test build
+          # Build cache: Speed up repeated builds
+          # Q: How does build cache work?
+          # A: Layers are cached in GitHub Actions.
+          #    - First build: 5 minutes (full build)
+          #    - Next builds: 30 seconds (only changed layers)
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        # Q: What's mode=max?
+        # A: Cache ALL layers (not just final image).
+        #    Slower cache creation but faster builds.
+
+      - name: Build User Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/user-service
+          file: ./services/user-service/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+# MAANG Interview Talking Points:
+#
+# Q: Why separate jobs instead of one big job?
+# A: "Parallel execution and clear feedback:
+#     - All 5 jobs run simultaneously (faster CI)
+#     - If type-check fails, I see it immediately (don't wait for tests)
+#     - Can retry individual failed jobs without re-running everything"
+#
+# Q: How long does this CI pipeline take?
+# A: "Without parallelization: 15+ minutes (sequential)
+#     With parallelization: 5-7 minutes (parallel)
+#     With caching: 2-3 minutes (cached node_modules and Docker layers)"
+#
+# Q: What happens if a job fails?
+# A: "GitHub shows red X on the PR → PR cannot be merged → Developer
+#     must fix the issue and push again → CI re-runs automatically"
+#
+# Q: How would you optimize this further?
+# A: "Several approaches:
+#     1. Split test job by service (parallel test execution)
+#     2. Use dependency caching more aggressively
+#     3. Skip jobs on specific file changes (docs-only changes skip tests)
+#     4. Use self-hosted runners (faster than GitHub's)"
+#
+# Q: What's missing from this CI pipeline?
+# A: "For production, I'd add:
+#     1. E2E tests (Playwright, Cypress)
+#     2. Load testing (k6, Artillery)
+#     3. Security scanning (Snyk, Trivy)
+#     4. License compliance checks
+#     5. Changelog generation"

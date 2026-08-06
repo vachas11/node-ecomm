@@ -1,0 +1,153 @@
+groups:
+  - name: api_gateway_alerts
+    interval: 30s
+    rules:
+      # High traffic alert
+      - alert: HighTrafficEndpoint
+        expr: rate(http_requests_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High traffic on {{ $labels.method }} {{ $labels.path }}"
+          description: "Endpoint {{ $labels.service }}:{{ $labels.method }} {{ $labels.path }} is receiving {{ $value | printf \"%.2f\" }} req/s"
+          dashboard: "http://grafana:3000/d/gateway-overview"
+
+      # High error rate (SLO breach)
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum by (service, method, path) (rate(http_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum by (service, method, path) (rate(http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+          slo: availability
+        annotations:
+          summary: "High error rate on {{ $labels.service }}:{{ $labels.method }} {{ $labels.path }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 1%)"
+          runbook: "https://wiki.company.com/runbooks/high-error-rate"
+
+      # Circuit breaker open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Circuit breaker OPEN for {{ $labels.service }}"
+          description: "{{ $labels.service }} circuit breaker has been open for 1 minute. Service is unavailable."
+          runbook: "https://wiki.company.com/runbooks/circuit-breaker"
+
+      # Circuit breaker half-open (recovering)
+      - alert: CircuitBreakerRecovering
+        expr: circuit_breaker_state == 1
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Circuit breaker HALF-OPEN for {{ $labels.service }}"
+          description: "{{ $labels.service }} is recovering from circuit breaker open state"
+
+      # High P95 latency
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum by (service, method, path, le) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+          slo: latency
+        annotations:
+          summary: "High P95 latency on {{ $labels.service }}:{{ $labels.method }} {{ $labels.path }}"
+          description: "P95 latency is {{ $value | printf \"%.2f\" }}s (threshold: 1s)"
+          dashboard: "http://grafana:3000/d/gateway-overview"
+
+      # High P99 latency (critical)
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99, sum by (service, method, path, le) (rate(http_request_duration_seconds_bucket[5m]))) > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Critical P99 latency on {{ $labels.service }}:{{ $labels.method }} {{ $labels.path }}"
+          description: "P99 latency is {{ $value | printf \"%.2f\" }}s (threshold: 5s)"
+
+      # Bulkhead utilization high
+      - alert: BulkheadHighUtilization
+        expr: bulkhead_utilization_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High bulkhead utilization for {{ $labels.service }}"
+          description: "{{ $labels.service }} bulkhead is {{ $value | printf \"%.1f\" }}% utilized (threshold: 80%)"
+
+      # Bulkhead rejections
+      - alert: BulkheadRejections
+        expr: rate(bulkhead_rejections_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Bulkhead rejecting requests for {{ $labels.service }}"
+          description: "{{ $labels.service }} is rejecting {{ $value | printf \"%.2f\" }} req/s due to bulkhead full"
+          runbook: "https://wiki.company.com/runbooks/bulkhead-full"
+
+      # Service down (no requests)
+      - alert: ServiceNoTraffic
+        expr: rate(http_requests_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "No traffic to {{ $labels.service }}"
+          description: "{{ $labels.service }} has received no requests in the last 10 minutes"
+
+      # High retry rate
+      - alert: HighRetryRate
+        expr: |
+          sum by (service) (rate(retry_attempts_total{attempt!="1"}[5m]))
+          /
+          sum by (service) (rate(retry_attempts_total[5m]))
+          > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High retry rate for {{ $labels.service }}"
+          description: "{{ $value | humanizePercentage }} of requests to {{ $labels.service }} are retrying"
+
+      # Gateway memory high
+      - alert: GatewayHighMemory
+        expr: process_resident_memory_bytes{job="api-gateway"} > 500000000
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "API Gateway memory usage high"
+          description: "Memory usage is {{ $value | humanize1024 }}B (threshold: 500MB)"
+
+      # Gateway event loop lag
+      - alert: GatewayEventLoopLag
+        expr: nodejs_eventloop_lag_seconds{job="api-gateway"} > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "API Gateway event loop lag detected"
+          description: "Event loop lag is {{ $value | printf \"%.3f\" }}s (threshold: 100ms). Node.js is blocked."

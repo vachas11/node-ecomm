@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    /* Language & Module */
+    "target": "ES2022",                           // Modern JS (Node 18+): async/await, optional chaining, nullish coalescing
+    "module": "commonjs",                         // Node.js uses CommonJS (require/module.exports)
+    "lib": ["ES2022"],                            // Standard library features
+
+    /* Module Resolution */
+    "moduleResolution": "node",                   // Resolve modules the Node.js way
+    "esModuleInterop": true,                      // import express from 'express' (not import * as express)
+    "resolveJsonModule": true,                    // Allow importing .json files
+
+    /* Type Checking - STRICT MODE (MAANG Standard) */
+    "strict": true,                               // Enable ALL strict checks below
+    "noImplicitAny": true,                        // Error on implicit 'any' (must be explicit)
+    "strictNullChecks": true,                     // Cannot assign null/undefined without explicit type
+    "strictFunctionTypes": true,                  // Function parameter contravariance
+    "strictBindCallApply": true,                  // Type-check bind/call/apply
+    "strictPropertyInitialization": true,         // Class properties MUST be initialized
+    "noImplicitThis": true,                       // Error when 'this' has implicit 'any'
+    "alwaysStrict": true,                         // Emit "use strict" in every file
+
+    /* Additional Checks */
+    "noUnusedLocals": true,                       // Error on unused local variables
+    "noUnusedParameters": true,                   // Error on unused function parameters
+    "noImplicitReturns": true,                    // Error if function doesn't return on all code paths
+    "noFallthroughCasesInSwitch": true,           // Error on switch fallthrough
+
+    /* Output */
+    "outDir": "./dist",                           // Compiled JS output directory
+    "rootDir": "./",                              // Source files root
+    "declaration": true,                          // Generate .d.ts declaration files
+    "declarationMap": true,                       // Generate .d.ts.map for declaration files
+    "sourceMap": true,                            // Generate .js.map for debugging
+    "removeComments": false,                      // Keep comments in output (for clarity)
+
+    /* Interop & Performance */
+    "skipLibCheck": true,                         // Skip type-checking .d.ts files (30-40% faster builds)
+    "forceConsistentCasingInFileNames": true,     // Error if import casing doesn't match filesystem
+    "allowSyntheticDefaultImports": true          // Allow default imports from modules without default export
+  },
+  "include": [
+    "services/**/*",
+    "shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/node_modules/**"
+  ]
+}

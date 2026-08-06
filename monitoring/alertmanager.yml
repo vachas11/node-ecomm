@@ -1,0 +1,66 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: true
+
+    # Warning alerts - less urgent
+    - match:
+        severity: warning
+      receiver: 'warning'
+
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:3000/api/alerts/webhook'
+        send_resolved: true
+
+  # Critical alerts - would go to PagerDuty in production
+  - name: 'critical'
+    # In production:
+    # pagerduty_configs:
+    #   - service_key: '<your-pagerduty-key>'
+    #     severity: 'critical'
+
+    # For now, just webhook
+    webhook_configs:
+      - url: 'http://localhost:3000/api/alerts/webhook'
+        send_resolved: true
+
+    # Could also add Slack
+    # slack_configs:
+    #   - api_url: '<slack-webhook-url>'
+    #     channel: '#alerts-critical'
+    #     title: '🚨 Critical Alert'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  # Warning alerts - would go to Slack in production
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://localhost:3000/api/alerts/webhook'
+        send_resolved: true
+
+    # In production:
+    # slack_configs:
+    #   - api_url: '<slack-webhook-url>'
+    #     channel: '#alerts-warning'
+    #     title: '⚠️ Warning Alert'
+    #     text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+inhibit_rules:
+  # Inhibit warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'alertname']
