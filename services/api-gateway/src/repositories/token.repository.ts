@@ -7,7 +7,8 @@ import { RefreshToken, RefreshTokenDatabaseRow } from '../models/RefreshToken';
 
 // Database pool interface
 interface DatabasePool {
-  query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number | null }>;
 }
 
 export class TokenRepository {
@@ -44,7 +45,7 @@ export class TokenRepository {
       'DELETE FROM refresh_tokens WHERE token_hash = $1',
       [tokenHash]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async deleteAllUserTokens(userId: number): Promise<number> {
@@ -52,14 +53,14 @@ export class TokenRepository {
       'DELETE FROM refresh_tokens WHERE user_id = $1',
       [userId]
     );
-    return result.rowCount;
+    return result.rowCount ?? 0;
   }
 
   async cleanupExpiredTokens(): Promise<number> {
     const result = await this.db.query(
       'DELETE FROM refresh_tokens WHERE expires_at <= NOW()'
     );
-    return result.rowCount;
+    return result.rowCount ?? 0;
   }
 
   async countUserTokens(userId: number): Promise<number> {

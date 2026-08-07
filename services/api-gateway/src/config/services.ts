@@ -34,11 +34,8 @@ export const getService = (serviceName: string): ServiceConfig => {
   return service;
 };
 
-export const getAllServices = (): (ServiceConfig & { name: string })[] => {
-  return Object.keys(services).map(key => ({
-    name: key,
-    ...services[key]
-  }));
+export const getAllServices = (): ServiceConfig[] => {
+  return Object.values(services);
 };
 
 export const hasService = (serviceName: string): boolean => {

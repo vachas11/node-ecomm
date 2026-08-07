@@ -4,9 +4,10 @@
 
 import { User, UserDatabaseRow } from '../models/User';
 
-// Database pool type (matches shared/database.js interface)
+// Database pool type (matches shared/database interface)
 interface DatabasePool {
-  query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number | null }>;
 }
 
 export interface CreateUserData {
@@ -133,7 +134,7 @@ export class UserRepository {
       'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [passwordHash, id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async updateEmailVerified(id: number, verified: boolean): Promise<boolean> {
@@ -141,7 +142,7 @@ export class UserRepository {
       'UPDATE users SET email_verified = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [verified, id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async deactivate(id: number): Promise<boolean> {
@@ -149,7 +150,7 @@ export class UserRepository {
       'UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async activate(id: number): Promise<boolean> {
@@ -157,7 +158,7 @@ export class UserRepository {
       'UPDATE users SET is_active = true, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
       [id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async delete(id: number): Promise<boolean> {
@@ -165,6 +166,6 @@ export class UserRepository {
       'DELETE FROM users WHERE id = $1',
       [id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 }

@@ -1,4 +1,4 @@
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import logger from './logger';
 
 interface DatabaseConfig {
@@ -13,6 +13,14 @@ interface DatabaseStats {
   totalConnections: number;
   idleConnections: number;
   waitingConnections: number;
+}
+
+// Custom QueryResult to avoid pg's strict QueryResultRow constraint
+interface QueryResult<T> {
+  rows: T[];
+  rowCount: number | null;
+  command: string;
+  fields: { name: string; dataTypeID: number }[];
 }
 
 class DatabasePool {
@@ -54,10 +62,11 @@ class DatabasePool {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async query<T = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
     const start = Date.now();
     try {
-      const result = await this.pool.query<T>(text, params);
+      const result = await this.pool.query(text, params) as unknown as QueryResult<T>;
       const duration = Date.now() - start;
 
       logger.debug('Query executed', {

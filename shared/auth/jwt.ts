@@ -1,11 +1,11 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { UnauthorizedError } from '../errors';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'];
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || '';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+const JWT_REFRESH_EXPIRES_IN = (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
 
 interface TokenPayload {
   userId: number;
@@ -39,7 +39,7 @@ interface UserForToken {
 
 const JWT_ISSUER = process.env.JWT_ISSUER || 'api-gateway';
 
-export const generateAccessToken = (payload: Partial<TokenPayload>, options: jwt.SignOptions = {}): string => {
+export const generateAccessToken = (payload: Partial<TokenPayload>, options: SignOptions = {}): string => {
   const tokenPayload = {
     ...payload,
     jti: uuidv4(),
@@ -47,11 +47,13 @@ export const generateAccessToken = (payload: Partial<TokenPayload>, options: jwt
     iat: Math.floor(Date.now() / 1000)
   };
 
-  return jwt.sign(tokenPayload, JWT_SECRET, {
+  const signOptions: SignOptions = {
+    ...options,
     expiresIn: options.expiresIn || JWT_EXPIRES_IN,
-    issuer: options.issuer || JWT_ISSUER,
-    ...options
-  });
+    issuer: options.issuer || JWT_ISSUER
+  };
+
+  return jwt.sign(tokenPayload, JWT_SECRET, signOptions);
 };
 
 export const generateRefreshToken = (payload: { userId: number }): string => {
@@ -68,7 +70,7 @@ export const generateRefreshToken = (payload: { userId: number }): string => {
   });
 };
 
-export const generateServiceToken = (serviceId: string, options: { permissions?: string[]; expiresIn?: string } = {}): string => {
+export const generateServiceToken = (serviceId: string, options: { permissions?: string[]; expiresIn?: SignOptions['expiresIn'] } = {}): string => {
   const tokenPayload = {
     serviceId,
     permissions: options.permissions || [],
