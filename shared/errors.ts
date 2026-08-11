@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction, RequestHandler } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 export class AppError extends Error {
   public statusCode: number;
@@ -81,14 +81,14 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
       stack: err.stack,
       url: req.originalUrl,
       method: req.method,
-      ip: req.ip
+      ip: req.ip,
     });
   } else {
     logger.warn('Client Error:', {
       message: err.message,
       url: req.originalUrl,
       method: req.method,
-      statusCode: err.statusCode
+      statusCode: err.statusCode,
     });
   }
 
@@ -99,18 +99,21 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
         message: err.message,
         statusCode: err.statusCode,
         stack: err.stack,
-        details: err.details || null
-      }
+        details: err.details || null,
+      },
     });
     return;
   }
 
-  const response: { success: boolean; error: { message: string; statusCode: number; details?: any } } = {
+  const response: {
+    success: boolean;
+    error: { message: string; statusCode: number; details?: any };
+  } = {
     success: false,
     error: {
       message: err.isOperational ? err.message : 'Something went wrong',
-      statusCode: err.statusCode
-    }
+      statusCode: err.statusCode,
+    },
   };
 
   if (err.details) {
@@ -120,7 +123,9 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   res.status(err.statusCode).json(response);
 };
 
-export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>): RequestHandler => {
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
