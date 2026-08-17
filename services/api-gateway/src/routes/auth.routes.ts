@@ -5,11 +5,12 @@ import { TokenRepository } from '../repositories/token.repository';
 import { authenticate } from '../../../../shared/auth/middleware';
 import { loginRateLimiter, registerRateLimiter, refreshRateLimiter } from '../../../../shared/auth/rateLimiter';
 import { validate, schemas } from '../middleware/validator';
-import { db } from '../config/database';
+import { db, prisma } from '../config/database';
 
 const router = Router();
 
-const tokenRepository = new TokenRepository(db);
+// Initialize repository with dual-mode (Prisma + DatabasePool)
+const tokenRepository = new TokenRepository(prisma, db);
 const authService = new AuthService(tokenRepository);
 const authController = createAuthController(authService);
 

@@ -11,7 +11,7 @@ import { apiRateLimiter } from '../../../shared/auth/rateLimiter';
 import routes from './routes';
 import authRoutes from './routes/auth.routes';
 import { getAllServices } from './config/services';
-import { initDatabase, db } from './config/database';
+import { initDatabase, db, closeDatabases } from './config/database';
 import * as metrics from './lib/Metrics';
 
 interface RequestWithId extends Request {
@@ -140,7 +140,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   server.close(async () => {
     logger.info('HTTP server closed');
     await redisClient.disconnect();
-    await db.close();
+    await closeDatabases(); // Disconnects both Prisma and DatabasePool
     logger.info('All connections closed');
     process.exit(0);
   });

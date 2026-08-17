@@ -1,6 +1,8 @@
+import { PrismaClient } from '../generated/prisma-client';
 import DatabasePool from '../../../../shared/database';
 import logger from '../../../../shared/logger';
 
+// Legacy DatabasePool (kept for complex queries)
 const db = new DatabasePool({
   database: process.env.DB_NAME || 'gateway_db',
   host: process.env.DB_HOST,
@@ -9,8 +11,40 @@ const db = new DatabasePool({
   password: process.env.DB_PASSWORD,
 });
 
+// New Prisma Client
+const prisma = new PrismaClient({
+  log:
+    process.env.NODE_ENV === 'development'
+      ? ['query', 'info', 'warn', 'error', 'event', { level: 'query', emit: 'event' }]
+      : ['error'],
+  datasources: {
+    db: {
+      url:
+        process.env.DATABASE_URL ||
+        `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+    },
+  },
+});
+
+prisma.$on('query', (e) => {
+  console.log(`Query: ${e.query}`);
+  console.log(`Duration: ${e.duration}ms`);
+
+  if (e.duration > 100) {
+    logger.warn('Slow query detected', {
+      query: e.query,
+      duration: e.duration,
+    });
+  }
+});
+
 export const initDatabase = async (): Promise<void> => {
   try {
+    // Connect Prisma
+    await prisma.$connect();
+    logger.info('Prisma client connected');
+
+    // Keep existing CREATE TABLE for backward compatibility
     await db.query(`
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id SERIAL PRIMARY KEY,
@@ -38,4 +72,10 @@ export const initDatabase = async (): Promise<void> => {
   }
 };
 
-export { db };
+export const closeDatabases = async (): Promise<void> => {
+  await prisma.$disconnect();
+  await db.close();
+  logger.info('Database connections closed');
+};
+
+export { db, prisma };

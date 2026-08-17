@@ -1,0 +1,530 @@
+<title>Node E-Commerce - Architecture & Folder Structure</title>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --heading: #0066cc;
+    --border: #e0e0e0;
+    --code-bg: #f5f5f5;
+    --highlight: #fff3cd;
+    --accent: #28a745;
+    --secondary: #6c757d;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a1a1a;
+      --text: #e0e0e0;
+      --heading: #4da6ff;
+      --border: #333333;
+      --code-bg: #2d2d2d;
+      --highlight: #3a3a00;
+      --accent: #4ade80;
+      --secondary: #9ca3af;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #1a1a1a;
+    --text: #e0e0e0;
+    --heading: #4da6ff;
+    --border: #333333;
+    --code-bg: #2d2d2d;
+    --highlight: #3a3a00;
+    --accent: #4ade80;
+    --secondary: #9ca3af;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    color: var(--heading);
+    border-bottom: 3px solid var(--heading);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 2rem;
+  }
+
+  h2 {
+    color: var(--heading);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  h3 {
+    color: var(--accent);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.2rem;
+  }
+
+  .folder-structure {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+
+  pre {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre;
+  }
+
+  .comment {
+    color: var(--secondary);
+  }
+
+  .highlight-box {
+    background: var(--highlight);
+    border-left: 4px solid var(--accent);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+
+  .architecture-flow {
+    background: var(--code-bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    text-align: center;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.95rem;
+  }
+
+  .service-card {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin: 1rem 0;
+  }
+
+  .service-card h3 {
+    margin-top: 0;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 0.5rem;
+  }
+
+  ul {
+    margin: 0.5rem 0 0.5rem 1.5rem;
+  }
+
+  li {
+    margin: 0.25rem 0;
+  }
+
+  .tech-stack {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+
+  .tech-item {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    text-align: center;
+  }
+
+  .tech-item strong {
+    color: var(--heading);
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  code {
+    background: var(--code-bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+  }
+
+  .section-divider {
+    border: 0;
+    height: 2px;
+    background: linear-gradient(to right, transparent, var(--border), transparent);
+    margin: 2rem 0;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      padding: 1rem;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    .folder-structure {
+      padding: 1rem;
+      font-size: 0.85rem;
+    }
+  }
+</style>
+
+<h1>📁 Node E-Commerce - Architecture & Folder Structure</h1>
+
+<div class="highlight-box">
+  <strong>Quick Summary:</strong> A microservices monorepo with 2 services (API Gateway + User Service), each following a 3-layer architecture (Controller → Service → Repository → Prisma ORM → PostgreSQL). Includes shared authentication utilities, comprehensive documentation, and a full monitoring stack.
+</div>
+
+<hr class="section-divider">
+
+<h2>🏗️ Complete Folder Structure</h2>
+
+<div class="folder-structure">
+<pre>node-ecomm/
+│
+├── services/                        <span class="comment"># Microservices - Each service is independent</span>
+│   │
+│   ├── api-gateway/                <span class="comment"># Port 3000 - Entry point, routing, auth</span>
+│   │   ├── src/
+│   │   │   ├── controllers/        <span class="comment"># HTTP request handlers</span>
+│   │   │   ├── services/           <span class="comment"># Business logic orchestration</span>
+│   │   │   ├── repositories/       <span class="comment"># Database operations (refresh tokens)</span>
+│   │   │   ├── routes/             <span class="comment"># API route definitions</span>
+│   │   │   ├── middleware/         <span class="comment"># Request processing (proxy, validation)</span>
+│   │   │   ├── models/             <span class="comment"># Data models (RefreshToken)</span>
+│   │   │   ├── lib/                <span class="comment"># Resilience patterns (Circuit Breaker, Retry, etc.)</span>
+│   │   │   ├── config/             <span class="comment"># Configuration (database, services)</span>
+│   │   │   └── server.ts           <span class="comment"># Express server entry point</span>
+│   │   ├── prisma/
+│   │   │   └── schema.prisma       <span class="comment"># Database schema for tokens</span>
+│   │   ├── Dockerfile              <span class="comment"># Container definition</span>
+│   │   ├── package.json            <span class="comment"># Dependencies & scripts</span>
+│   │   └── tsconfig.json           <span class="comment"># TypeScript configuration</span>
+│   │
+│   └── user-service/               <span class="comment"># Port 3001 - User management, authentication</span>
+│       ├── src/
+│       │   ├── controllers/        <span class="comment"># HTTP request handlers</span>
+│       │   ├── services/           <span class="comment"># Business logic orchestration</span>
+│       │   ├── repositories/       <span class="comment"># Database operations (users)</span>
+│       │   ├── routes/             <span class="comment"># API route definitions</span>
+│       │   ├── middleware/         <span class="comment"># Request processing & validation</span>
+│       │   ├── models/             <span class="comment"># Data models (User)</span>
+│       │   ├── utils/              <span class="comment"># Utility functions (password hashing)</span>
+│       │   ├── config/             <span class="comment"># Configuration (database)</span>
+│       │   └── server.ts           <span class="comment"># Express server entry point</span>
+│       ├── prisma/
+│       │   └── schema.prisma       <span class="comment"># Database schema for users</span>
+│       ├── Dockerfile
+│       ├── package.json
+│       └── tsconfig.json
+│
+├── shared/                         <span class="comment"># Code shared across all services</span>
+│   └── auth/                       <span class="comment"># Authentication utilities</span>
+│       ├── blacklist.ts            <span class="comment"># Token blacklist (Redis-based)</span>
+│       ├── jwt.ts                  <span class="comment"># JWT generation & verification</span>
+│       ├── middleware.ts           <span class="comment"># Auth middleware for Express</span>
+│       └── rateLimiter.ts          <span class="comment"># Rate limiting logic (Redis-based)</span>
+│
+├── docs/                           <span class="comment"># Project documentation</span>
+│   ├── learning/                   <span class="comment"># Deep-dive modules (M01-M21, 60+ files)</span>
+│   └── *.md                        <span class="comment"># Technical guides (Prisma, migrations, etc.)</span>
+│
+├── monitoring/                     <span class="comment"># Observability & monitoring</span>
+│   ├── prometheus.yml              <span class="comment"># Metrics collection configuration</span>
+│   ├── alertmanager.yml            <span class="comment"># Alert management</span>
+│   ├── alerts.yml                  <span class="comment"># Alert rules</span>
+│   └── grafana/                    <span class="comment"># Dashboards & visualizations</span>
+│
+├── scripts/                        <span class="comment"># Utility scripts</span>
+│   └── analyze-endpoints.js        <span class="comment"># Endpoint analysis tool</span>
+│
+├── .github/                        <span class="comment"># CI/CD workflows</span>
+│   └── workflows/
+│       └── ci.yml                  <span class="comment"># GitHub Actions pipeline</span>
+│
+├── docker-compose.yml              <span class="comment"># Multi-service orchestration</span>
+├── docker-compose.monitoring.yml   <span class="comment"># Monitoring stack setup</span>
+├── package.json                    <span class="comment"># Monorepo root config (workspaces)</span>
+├── tsconfig.json                   <span class="comment"># TypeScript config (root)</span>
+└── README.md                       <span class="comment"># Main documentation</span>
+</pre>
+</div>
+
+<hr class="section-divider">
+
+<h2>🎯 Service Breakdown</h2>
+
+<div class="service-card">
+  <h3>🚪 API Gateway (Port 3000)</h3>
+  <strong>Purpose:</strong> Entry point for all external requests
+  <ul>
+    <li><strong>Routing:</strong> Proxies requests to appropriate microservices</li>
+    <li><strong>Authentication:</strong> Handles login, token refresh, logout</li>
+    <li><strong>Rate Limiting:</strong> Prevents API abuse</li>
+    <li><strong>Resilience Patterns:</strong> Circuit Breaker, Retry Strategy, Bulkhead Isolation</li>
+    <li><strong>Token Management:</strong> Stores refresh tokens in database</li>
+  </ul>
+  <strong>Database:</strong> Prisma ORM → PostgreSQL (refresh_tokens table)
+</div>
+
+<div class="service-card">
+  <h3>👤 User Service (Port 3001)</h3>
+  <strong>Purpose:</strong> User management and authentication backend
+  <ul>
+    <li><strong>User Registration:</strong> Create new user accounts</li>
+    <li><strong>Authentication:</strong> Validate credentials, hash passwords</li>
+    <li><strong>Profile Management:</strong> Update user information</li>
+    <li><strong>Internal API:</strong> Service-to-service user validation</li>
+  </ul>
+  <strong>Database:</strong> Prisma ORM → PostgreSQL (users table)
+</div>
+
+<hr class="section-divider">
+
+<h2>🔄 Layered Architecture (Inside Each Service)</h2>
+
+<div class="architecture-flow">
+<pre>
+┌─────────────────────────────────────────────┐
+│          <strong>Controllers</strong> (HTTP Layer)        │  ← Handle requests/responses
+│   • Parse request body/params              │
+│   • Call service methods                   │
+│   • Return JSON responses                  │
+└─────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────┐
+│       <strong>Services</strong> (Business Logic Layer)    │  ← Orchestrate operations
+│   • Validation (password strength, email)  │
+│   • Business rules enforcement             │
+│   • Transaction orchestration              │
+└─────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────┐
+│      <strong>Repositories</strong> (Data Access Layer)    │  ← Database operations only
+│   • CRUD operations via Prisma             │
+│   • Query building                         │
+│   • Data transformation                    │
+└─────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────┐
+│            <strong>Prisma ORM</strong>                   │  ← Type-safe database access
+│   • Auto-generated TypeScript client       │
+│   • Type safety & autocomplete             │
+│   • Parameterized queries (SQL injection)  │
+└─────────────────────────────────────────────┘
+                    ↓
+┌─────────────────────────────────────────────┐
+│            <strong>PostgreSQL</strong>                   │  ← Database
+└─────────────────────────────────────────────┘
+</pre>
+</div>
+
+<hr class="section-divider">
+
+<h2>📦 What Each Folder Contains</h2>
+
+<div class="service-card">
+  <h3>src/controllers/</h3>
+  <p><strong>Purpose:</strong> HTTP request/response handling</p>
+  <ul>
+    <li>Parse incoming requests (body, params, headers)</li>
+    <li>Delegate to service layer</li>
+    <li>Format and return JSON responses</li>
+    <li><strong>Rule:</strong> No business logic here, only HTTP handling</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>src/services/</h3>
+  <p><strong>Purpose:</strong> Business logic and orchestration</p>
+  <ul>
+    <li>Input validation (password strength, email format)</li>
+    <li>Business rules (check if email already exists)</li>
+    <li>Orchestrate multiple repository calls</li>
+    <li>Transaction management</li>
+    <li><strong>Rule:</strong> No HTTP code, no direct database access</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>src/repositories/</h3>
+  <p><strong>Purpose:</strong> Database operations only</p>
+  <ul>
+    <li>CRUD operations using Prisma</li>
+    <li>Query building (filters, sorting, pagination)</li>
+    <li>Data transformation (DB format ↔ Domain models)</li>
+    <li><strong>Rule:</strong> No business logic, no HTTP code</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>src/models/</h3>
+  <p><strong>Purpose:</strong> Data models and domain logic</p>
+  <ul>
+    <li>TypeScript interfaces and classes</li>
+    <li>Domain methods (getFullName(), isAdmin())</li>
+    <li>Data transformation (toJSON())</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>src/routes/</h3>
+  <p><strong>Purpose:</strong> API route definitions</p>
+  <ul>
+    <li>Map HTTP methods + paths to controllers</li>
+    <li>Apply middleware (authentication, validation)</li>
+    <li>Group related routes</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>src/middleware/</h3>
+  <p><strong>Purpose:</strong> Request processing pipeline</p>
+  <ul>
+    <li>Authentication checks</li>
+    <li>Request validation</li>
+    <li>Proxy logic (API Gateway)</li>
+    <li>Error handling</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>src/lib/</h3>
+  <p><strong>Purpose:</strong> Resilience and reliability patterns (API Gateway only)</p>
+  <ul>
+    <li><strong>CircuitBreaker.ts:</strong> Prevent cascading failures</li>
+    <li><strong>RetryStrategy.ts:</strong> Retry failed requests with backoff</li>
+    <li><strong>BulkheadIsolator.ts:</strong> Resource isolation</li>
+    <li><strong>ConnectionPool.ts:</strong> Connection management</li>
+    <li><strong>Metrics.ts:</strong> Performance monitoring</li>
+  </ul>
+</div>
+
+<div class="service-card">
+  <h3>prisma/schema.prisma</h3>
+  <p><strong>Purpose:</strong> Database schema definition</p>
+  <ul>
+    <li>Define models (tables)</li>
+    <li>Field mappings (camelCase ↔ snake_case)</li>
+    <li>Indexes and constraints</li>
+    <li>Generate TypeScript client</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<h2>🔗 Shared Code</h2>
+
+<div class="service-card">
+  <h3>shared/auth/</h3>
+  <p><strong>Purpose:</strong> Reusable authentication utilities across all services</p>
+  <ul>
+    <li><strong>jwt.ts:</strong> Generate & verify JWT tokens</li>
+    <li><strong>blacklist.ts:</strong> Manage revoked tokens (Redis)</li>
+    <li><strong>middleware.ts:</strong> Express authentication middleware</li>
+    <li><strong>rateLimiter.ts:</strong> Rate limiting implementation (Redis)</li>
+  </ul>
+  <p><strong>Why shared?</strong> Prevents code duplication, ensures consistency</p>
+</div>
+
+<hr class="section-divider">
+
+<h2>🛠️ Technology Stack</h2>
+
+<div class="tech-stack">
+  <div class="tech-item">
+    <strong>Runtime</strong>
+    Node.js 18+
+  </div>
+  <div class="tech-item">
+    <strong>Language</strong>
+    TypeScript
+  </div>
+  <div class="tech-item">
+    <strong>Framework</strong>
+    Express.js
+  </div>
+  <div class="tech-item">
+    <strong>ORM</strong>
+    Prisma
+  </div>
+  <div class="tech-item">
+    <strong>Database</strong>
+    PostgreSQL
+  </div>
+  <div class="tech-item">
+    <strong>Cache</strong>
+    Redis
+  </div>
+  <div class="tech-item">
+    <strong>Monitoring</strong>
+    Prometheus + Grafana
+  </div>
+  <div class="tech-item">
+    <strong>Containers</strong>
+    Docker
+  </div>
+  <div class="tech-item">
+    <strong>Testing</strong>
+    Jest
+  </div>
+  <div class="tech-item">
+    <strong>Linting</strong>
+    ESLint + Prettier
+  </div>
+  <div class="tech-item">
+    <strong>CI/CD</strong>
+    GitHub Actions
+  </div>
+  <div class="tech-item">
+    <strong>Package Manager</strong>
+    npm (workspaces)
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<h2>💡 Quick Explanation Template</h2>
+
+<div class="highlight-box">
+  <p><strong>When someone asks about your folder structure:</strong></p>
+  <p style="margin-top: 1rem;">"It's a <strong>microservices monorepo</strong> with 2 services - an <strong>API Gateway</strong> and <strong>User Service</strong>. Each service follows a <strong>3-layer architecture</strong>: Controllers handle HTTP, Services contain business logic, and Repositories manage database access through <strong>Prisma ORM</strong>. We have <strong>shared authentication utilities</strong> used across services, <strong>comprehensive documentation</strong> with 60+ modules, and a <strong>monitoring stack</strong> with Prometheus and Grafana for production observability."</p>
+</div>
+
+<hr class="section-divider">
+
+<h2>📊 Architecture Highlights</h2>
+
+<ul style="line-height: 2;">
+  <li>✅ <strong>Microservices:</strong> Independent services, separate databases</li>
+  <li>✅ <strong>Monorepo:</strong> Shared dependencies via npm workspaces</li>
+  <li>✅ <strong>Layered Architecture:</strong> Clean separation of concerns</li>
+  <li>✅ <strong>Repository Pattern:</strong> Abstraction over Prisma for testability</li>
+  <li>✅ <strong>Type Safety:</strong> TypeScript + Prisma for compile-time checks</li>
+  <li>✅ <strong>Resilience:</strong> Circuit breaker, retry, bulkhead patterns</li>
+  <li>✅ <strong>Observability:</strong> Metrics, logging, monitoring dashboards</li>
+  <li>✅ <strong>Security:</strong> JWT auth, rate limiting, token blacklist</li>
+  <li>✅ <strong>Documentation:</strong> 60+ deep-dive modules for interview prep</li>
+  <li>✅ <strong>Production-Ready:</strong> Docker, CI/CD, health checks</li>
+</ul>

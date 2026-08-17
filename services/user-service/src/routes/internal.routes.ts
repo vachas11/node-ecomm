@@ -9,13 +9,14 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
 import { UserRepository } from '../repositories/user.repository';
-import { db } from '../config/database';
+import { db, prisma } from '../config/database';
 import { asyncHandler, ValidationError } from '../../../../shared/errors';
 import logger from '../../../../shared/logger';
 
 const router = Router();
 
-const userRepository = new UserRepository(db);
+// Initialize repository with dual-mode (Prisma + DatabasePool)
+const userRepository = new UserRepository(prisma, db);
 const userService = new UserService(userRepository);
 
 const verifyInternalService = (req: Request, res: Response, next: NextFunction): void => {

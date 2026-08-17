@@ -1,0 +1,631 @@
+<title>E-Commerce Microservices - System Architecture</title>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1f2937;
+    --heading: #1e40af;
+    --border: #d1d5db;
+    --line: #6b7280;
+    --client: #8b5cf6;
+    --gateway: #3b82f6;
+    --service: #10b981;
+    --db: #0ea5e9;
+    --cache: #f59e0b;
+    --queue: #ec4899;
+    --monitor: #ef4444;
+    --shared: #8b5cf6;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111827;
+      --text: #f3f4f6;
+      --heading: #60a5fa;
+      --border: #374151;
+      --line: #9ca3af;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #111827;
+    --text: #f3f4f6;
+    --heading: #60a5fa;
+    --border: #374151;
+    --line: #9ca3af;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    padding: 2rem;
+  }
+
+  .container {
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    text-align: center;
+    color: var(--heading);
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 3px solid var(--heading);
+    padding-bottom: 0.75rem;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: var(--line);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+  }
+
+  .diagram {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    margin: 2rem 0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+
+  .legend {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .legend-box {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+  }
+
+  .flow-section {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+  }
+
+  .flow-section h2 {
+    color: var(--heading);
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+
+  .flow-section h3 {
+    color: var(--heading);
+    font-size: 1.15rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  code {
+    background: var(--border);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+
+  .example-box {
+    background: var(--bg);
+    border-left: 4px solid var(--heading);
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+  }
+
+  .step {
+    margin: 0.75rem 0;
+    padding-left: 1.5rem;
+    position: relative;
+  }
+
+  .step::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--heading);
+    font-weight: bold;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      padding: 1rem;
+    }
+
+    .diagram {
+      font-size: 0.65rem;
+      padding: 1rem;
+    }
+  }
+</style>
+
+<div class="container">
+  <h1>E-Commerce Microservices Architecture</h1>
+  <p class="subtitle">Complete System Design with Service Communication Flow</p>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--client);"></div>
+      <span>External Clients</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--gateway);"></div>
+      <span>API Gateway</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--service);"></div>
+      <span>Microservices</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--db);"></div>
+      <span>Databases</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--cache);"></div>
+      <span>Redis Cache</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--queue);"></div>
+      <span>Message Queue</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--shared);"></div>
+      <span>Shared Library</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-box" style="background: var(--monitor);"></div>
+      <span>Monitoring</span>
+    </div>
+  </div>
+
+  <div class="diagram">
+<pre>
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                              EXTERNAL CLIENTS                                                             │
+│                                       Web App  |  Mobile App  |  Third-party APIs                                        │
+└───────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────────┘
+                                                        │ HTTPS/REST
+                                                        ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                            API GATEWAY (Port 3000)                                                        │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │ Responsibilities: JWT Auth, Rate Limiting, Request Routing, Circuit Breaker, Retry, Load Balancing, Metrics      │ │
+│  │ Uses: shared/auth/ (jwt.ts, middleware.ts, blacklist.ts, rateLimiter.ts)                                         │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│  Database: PostgreSQL (refresh_tokens)  |  Cache: Redis (rate limits, blacklist)                                        │
+└─────────┬──────────────────┬───────────────────┬──────────────────┬──────────────────┬──────────────────────────────────┘
+          │ REST              │ REST              │ REST             │ REST             │ REST
+          ▼                   ▼                   ▼                  ▼                  ▼
+┌────────────────────┐ ┌──────────────────┐ ┌─────────────────┐ ┌──────────────────┐ ┌──────────────────────┐
+│  USER SERVICE      │ │ PRODUCT SERVICE  │ │  ORDER SERVICE  │ │ PAYMENT SERVICE  │ │ NOTIFICATION SERVICE │
+│  (Port 3001)       │ │  (Port 3002)     │ │  (Port 3003)    │ │  (Port 3004)     │ │   (Port 3005)        │
+├────────────────────┤ ├──────────────────┤ ├─────────────────┤ ├──────────────────┤ ├──────────────────────┤
+│ • User CRUD        │ │ • Catalog Mgmt   │ │ • Cart CRUD     │ │ • Transactions   │ │ • Email Sending      │
+│ • Authentication   │ │ • Search/Filter  │ │ • Order Create  │ │ • Refunds        │ │ • SMS Alerts         │
+│ • Password Hash    │ │ • Inventory Sync │ │ • Order History │ │ • Invoices       │ │ • Push Notifications │
+│ • Profile Update   │ │ • Categories     │ │ • Status Track  │ │ • Gateway Integ  │ │ • Template Engine    │
+│ • Role Mgmt        │ │ • Pricing        │ │ • Checkout      │ │ • Webhooks       │ │ • Queue Consumer     │
+│                    │ │                  │ │                 │ │                  │ │                      │
+│ Uses: shared/auth/ │ │ Uses: shared/    │ │ Uses: shared/   │ │ Uses: shared/    │ │ No shared code       │
+│ (jwt, middleware)  │ │ (cache utils)    │ │ (auth, cache)   │ │ (auth)           │ │ (independent)        │
+└─────────┬──────────┘ └────────┬─────────┘ └────────┬────────┘ └────────┬─────────┘ └───────────┬──────────┘
+          │                     │                     │                   │                        │
+          │                     │                     │ ◄─────────────────┘                        │
+          │                     │                     │ Validate Payment                           │
+          │                     │                     │                                            │
+          │                     │ ◄───────────────────┘                                            │
+          │                     │ Check Inventory                                                  │
+          │                     │                                                                  │
+          ▼                     ▼                     ▼                   ▼                        │
+┌────────────────────┐ ┌──────────────────┐ ┌─────────────────┐ ┌──────────────────┐            │
+│  PostgreSQL        │ │  PostgreSQL      │ │  PostgreSQL     │ │  PostgreSQL      │            │
+│  (User DB)         │ │  (Product DB)    │ │  (Order DB)     │ │  (Payment DB)    │            │
+├────────────────────┤ ├──────────────────┤ ├─────────────────┤ ├──────────────────┤            │
+│ • users            │ │ • products       │ │ • orders        │ │ • transactions   │            │
+│ • refresh_tokens   │ │ • categories     │ │ • order_items   │ │ • invoices       │            │
+│ • roles            │ │ • inventory      │ │ • carts         │ │ • refunds        │            │
+└────────────────────┘ └──────────────────┘ └─────────────────┘ └──────────────────┘            │
+          │                     │                     │                   │                        │
+          │                     │                     │                   │                        │
+          │                     │        PUBLISH      │      PUBLISH      │                        │
+          │          PUBLISH    │        EVENTS       │      EVENTS       │         PUBLISH        │
+          └──────────┬──────────┴──────────┬──────────┴──────────┬────────┴─────────┬─────────────┘
+                     │                     │                     │                  │
+                     ▼                     ▼                     ▼                  ▼
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       MESSAGE QUEUE (RabbitMQ / Kafka)                                                    │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │  EXCHANGES & TOPICS:                                                                                               │ │
+│  │  ┌─────────────────────┬────────────────────────┬──────────────────────┬─────────────────────────────────────────┐ │ │
+│  │  │ user.registered     │ order.created          │ payment.completed    │ inventory.updated                       │ │ │
+│  │  │ user.updated        │ order.updated          │ payment.failed       │ inventory.low                           │ │ │
+│  │  │ user.deleted        │ order.cancelled        │ payment.refunded     │ product.created                         │ │ │
+│  │  └─────────────────────┴────────────────────────┴──────────────────────┴─────────────────────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────┬───────────────────────────────────────────┬──────────────────────────────────────────┬──────────────┘
+                     │ SUBSCRIBE                                  │ SUBSCRIBE                                │ SUBSCRIBE
+                     ▼                                            ▼                                          ▼
+          ┌──────────────────────┐                   ┌────────────────────────┐               ┌────────────────────────┐
+          │ Notification Service │                   │  Product Service       │               │  Analytics Service     │
+          │ • user.registered    │                   │  • order.created       │               │  • All events          │
+          │ • order.created      │                   │  • Deduct inventory    │               │  • Data aggregation    │
+          │ • payment.completed  │                   │  • Update stock        │               │  • Business metrics    │
+          └──────────────────────┘                   └────────────────────────┘               └────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+                                              SHARED INFRASTRUCTURE
+═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                          SHARED LIBRARY (shared/auth/)                                                    │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │  jwt.ts           → JWT token generation & verification (used by API Gateway, User Service)                       │ │
+│  │  middleware.ts    → Authentication middleware (used by all services for protected routes)                         │ │
+│  │  blacklist.ts     → Token blacklist management (Redis-based, used by Gateway & User Service)                      │ │
+│  │  rateLimiter.ts   → Rate limiting logic (Redis-based, used by API Gateway)                                        │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+│  Purpose: Prevent code duplication, ensure consistent auth behavior across services                                     │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                        ▲
+                                                        │ Imported by
+                        ┌───────────────────────────────┴───────────────────────────────────────┐
+                        │                                                                       │
+                 API Gateway                                                            All Microservices
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                          REDIS CACHE (Shared by All Services)                                             │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │  • Token Blacklist (key: blacklist:{token})     → API Gateway, User Service                                        │ │
+│  │  • Rate Limiting Counters (key: ratelimit:{ip}) → API Gateway                                                      │ │
+│  │  • User Session Cache (key: session:{userId})   → API Gateway, User Service                                        │ │
+│  │  • Product Catalog Cache (key: product:{id})    → Product Service                                                  │ │
+│  │  • Cart Data (key: cart:{userId})               → Order Service                                                    │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    MONITORING STACK (Prometheus + Grafana + AlertManager)                                │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │  Prometheus: Scrapes /metrics from all services (Request rate, Response time, Error rate, Circuit breaker state)  │ │
+│  │  Grafana: Visualizes metrics with dashboards (API Gateway dashboard, Service health dashboard)                    │ │
+│  │  AlertManager: Sends alerts (Service down, High error rate, Slow response time, Circuit breaker open)             │ │
+│  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+</pre>
+  </div>
+
+  <div class="flow-section">
+    <h2>📋 Example Flow 1: User Registration</h2>
+
+    <div class="example-box">
+      <h3>Scenario: New user creates an account</h3>
+
+      <div class="step"><strong>Step 1:</strong> Client → API Gateway
+        <br><code>POST /api/auth/register</code>
+        <br>Body: <code>{ email: "user@example.com", password: "SecurePass123", firstName: "John", lastName: "Doe" }</code>
+      </div>
+
+      <div class="step"><strong>Step 2:</strong> API Gateway
+        <br>✓ Check rate limit (Redis: <code>INCR ratelimit:192.168.1.1</code>)
+        <br>✓ Validate request body
+        <br>✓ Route to User Service
+      </div>
+
+      <div class="step"><strong>Step 3:</strong> User Service → PostgreSQL
+        <br>✓ Check if email already exists: <code>SELECT * FROM users WHERE email = ?</code>
+        <br>✓ If exists → Return 409 Conflict
+        <br>✓ Hash password using <code>bcrypt.hash(password, 10)</code> from <code>utils/password.ts</code>
+        <br>✓ Create user: <code>INSERT INTO users (email, password_hash, first_name, last_name)</code>
+        <br>✓ Store in PostgreSQL (User DB)
+      </div>
+
+      <div class="step"><strong>Step 4:</strong> User Service → Message Queue
+        <br>✓ Publish event: <code>user.registered</code>
+        <br>Payload: <code>{ userId: 123, email: "user@example.com", firstName: "John", registeredAt: "2024-01-15T10:30:00Z" }</code>
+      </div>
+
+      <div class="step"><strong>Step 5:</strong> User Service → API Gateway
+        <br>✓ Generate JWT tokens using <code>shared/auth/jwt.ts</code>:
+        <br>&nbsp;&nbsp;- Access Token (15 min expiry)
+        <br>&nbsp;&nbsp;- Refresh Token (7 days expiry)
+        <br>✓ Store refresh token in PostgreSQL: <code>INSERT INTO refresh_tokens</code>
+        <br>Response: <code>201 Created</code> with <code>{ accessToken, refreshToken, user: { id, email, firstName } }</code>
+      </div>
+
+      <div class="step"><strong>Step 6:</strong> API Gateway → Client
+        <br>✓ Record metrics (Prometheus): <code>user_registration_total++</code>
+        <br>✓ Return response to client
+      </div>
+
+      <div class="step"><strong>Step 7 (Async):</strong> Message Queue → Notification Service
+        <br>✓ Notification Service subscribes to <code>user.registered</code> event
+        <br>✓ Receive event from queue
+        <br>✓ Generate welcome email from template
+        <br>✓ Send email: "Welcome to E-Commerce Platform!"
+        <br>✓ Log notification sent
+      </div>
+
+      <p style="margin-top: 1rem; color: var(--line);"><strong>Key Points:</strong></p>
+      <ul style="margin-left: 1.5rem;">
+        <li>Synchronous: Client → Gateway → User Service (immediate response)</li>
+        <li>Asynchronous: User Service → Queue → Notification Service (fire-and-forget)</li>
+        <li>Shared Library: Uses <code>shared/auth/jwt.ts</code> for token generation</li>
+        <li>Cache: Rate limiting uses Redis</li>
+        <li>Database: User stored in PostgreSQL</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h2>📦 Example Flow 2: Place Order (with Inventory Update & Notification)</h2>
+
+    <div class="example-box">
+      <h3>Scenario: User places an order for products</h3>
+
+      <div class="step"><strong>Step 1:</strong> Client → API Gateway
+        <br><code>POST /api/orders</code>
+        <br>Headers: <code>Authorization: Bearer &lt;jwt_token&gt;</code>
+        <br>Body: <code>{ products: [{ productId: 101, quantity: 2 }, { productId: 202, quantity: 1 }], shippingAddress: {...} }</code>
+      </div>
+
+      <div class="step"><strong>Step 2:</strong> API Gateway
+        <br>✓ Verify JWT token using <code>shared/auth/jwt.ts → verifyToken()</code>
+        <br>✓ Check token not in blacklist (Redis: <code>GET blacklist:&lt;token&gt;</code>)
+        <br>✓ Check rate limit (Redis: <code>INCR ratelimit:user:123</code>)
+        <br>✓ Extract userId from token: <code>userId = 123</code>
+        <br>✓ Route to Order Service
+      </div>
+
+      <div class="step"><strong>Step 3:</strong> Order Service → User Service (Internal API)
+        <br><code>GET /internal/users/123/validate</code>
+        <br>User Service checks: User exists? Active? Has valid profile?
+        <br>Response: <code>{ id: 123, email: "user@example.com", isActive: true }</code>
+      </div>
+
+      <div class="step"><strong>Step 4:</strong> Order Service → Product Service (Internal API)
+        <br><code>POST /internal/products/check-inventory</code>
+        <br>Body: <code>[{ productId: 101, quantity: 2 }, { productId: 202, quantity: 1 }]</code>
+        <br>Product Service checks stock availability
+        <br>Response: <code>{ available: true, items: [{ productId: 101, inStock: 50, price: 29.99 }, ...] }</code>
+      </div>
+
+      <div class="step"><strong>Step 5:</strong> Order Service
+        <br>✓ Calculate total amount: <code>total = (2 × $29.99) + (1 × $49.99) = $109.97</code>
+        <br>✓ Create order record in PostgreSQL (Order DB):
+        <br>&nbsp;&nbsp;<code>INSERT INTO orders (user_id, total_amount, status) VALUES (123, 109.97, 'pending')</code>
+        <br>&nbsp;&nbsp;<code>INSERT INTO order_items (order_id, product_id, quantity, price)</code>
+        <br>✓ Cache order in Redis: <code>SET order:456 {...}</code> with 1 hour TTL
+      </div>
+
+      <div class="step"><strong>Step 6:</strong> Order Service → Payment Service (Internal API)
+        <br><code>POST /internal/payments/process</code>
+        <br>Body: <code>{ orderId: 456, amount: 109.97, userId: 123 }</code>
+        <br>Payment Service processes payment with external gateway
+        <br>Store transaction in PostgreSQL (Payment DB)
+        <br>Response: <code>{ transactionId: "txn_789", status: "success" }</code>
+      </div>
+
+      <div class="step"><strong>Step 7:</strong> Order Service → PostgreSQL
+        <br>✓ Update order status: <code>UPDATE orders SET status = 'paid', transaction_id = 'txn_789' WHERE id = 456</code>
+      </div>
+
+      <div class="step"><strong>Step 8:</strong> Order Service → Message Queue
+        <br>✓ Publish event: <code>order.created</code>
+        <br>Payload: <code>{ orderId: 456, userId: 123, items: [{productId: 101, quantity: 2}, ...], totalAmount: 109.97 }</code>
+      </div>
+
+      <div class="step"><strong>Step 9:</strong> Payment Service → Message Queue
+        <br>✓ Publish event: <code>payment.completed</code>
+        <br>Payload: <code>{ orderId: 456, transactionId: "txn_789", amount: 109.97, status: "success" }</code>
+      </div>
+
+      <div class="step"><strong>Step 10:</strong> Order Service → API Gateway → Client
+        <br>✓ Return response: <code>201 Created</code>
+        <br>Body: <code>{ orderId: 456, status: "paid", totalAmount: 109.97, estimatedDelivery: "2024-01-20" }</code>
+      </div>
+
+      <div class="step"><strong>Step 11 (Async):</strong> Message Queue → Product Service
+        <br>✓ Product Service subscribes to <code>order.created</code> event
+        <br>✓ Receive event, extract product IDs and quantities
+        <br>✓ Deduct inventory in PostgreSQL (Product DB):
+        <br>&nbsp;&nbsp;<code>UPDATE inventory SET quantity = quantity - 2 WHERE product_id = 101</code>
+        <br>&nbsp;&nbsp;<code>UPDATE inventory SET quantity = quantity - 1 WHERE product_id = 202</code>
+        <br>✓ Check if inventory low → Publish <code>inventory.updated</code> event
+      </div>
+
+      <div class="step"><strong>Step 12 (Async):</strong> Message Queue → Notification Service
+        <br>✓ Notification Service subscribes to <code>order.created</code> AND <code>payment.completed</code> events
+        <br>✓ Receive both events
+        <br>✓ Generate order confirmation email
+        <br>✓ Send email: "Order #456 Confirmed - Total: $109.97"
+        <br>✓ Send SMS: "Your order has been placed successfully!"
+      </div>
+
+      <p style="margin-top: 1rem; color: var(--line);"><strong>Key Points:</strong></p>
+      <ul style="margin-left: 1.5rem;">
+        <li><strong>Synchronous Chain:</strong> Order → User (validate) → Product (check inventory) → Payment (process)</li>
+        <li><strong>Asynchronous Events:</strong> Order Service & Payment Service publish to queue</li>
+        <li><strong>Event Consumers:</strong> Product Service (inventory update), Notification Service (email/SMS)</li>
+        <li><strong>Shared Library:</strong> API Gateway uses <code>shared/auth/jwt.ts</code> and <code>shared/auth/middleware.ts</code></li>
+        <li><strong>Cache Usage:</strong> Order cached in Redis for quick retrieval</li>
+        <li><strong>Database per Service:</strong> Order DB, Product DB, Payment DB are separate</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h2>🚪 Example Flow 3: User Logout (Token Blacklist)</h2>
+
+    <div class="example-box">
+      <h3>Scenario: User logs out, token must be invalidated</h3>
+
+      <div class="step"><strong>Step 1:</strong> Client → API Gateway
+        <br><code>POST /api/auth/logout</code>
+        <br>Headers: <code>Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...</code>
+      </div>
+
+      <div class="step"><strong>Step 2:</strong> API Gateway
+        <br>✓ Verify JWT token using <code>shared/auth/jwt.ts → verifyToken()</code>
+        <br>✓ Extract userId and token expiry: <code>{ userId: 123, exp: 1705320000 }</code>
+        <br>✓ Route to User Service (logout endpoint)
+      </div>
+
+      <div class="step"><strong>Step 3:</strong> User Service → Redis (Blacklist Token)
+        <br>✓ Add token to blacklist using <code>shared/auth/blacklist.ts → addToBlacklist()</code>
+        <br>✓ Redis command: <code>SET blacklist:eyJhbGciOi... "revoked" EX 900</code>
+        <br>&nbsp;&nbsp;(EX 900 = expires in 15 minutes, matching token's remaining lifetime)
+        <br>✓ This ensures token cannot be reused until it naturally expires
+      </div>
+
+      <div class="step"><strong>Step 4:</strong> User Service → PostgreSQL (Delete Refresh Token)
+        <br>✓ Find refresh token associated with this user:
+        <br>&nbsp;&nbsp;<code>SELECT * FROM refresh_tokens WHERE user_id = 123</code>
+        <br>✓ Delete refresh token from database:
+        <br>&nbsp;&nbsp;<code>DELETE FROM refresh_tokens WHERE user_id = 123 AND token = 'refresh_token_hash'</code>
+        <br>✓ User cannot get new access token without logging in again
+      </div>
+
+      <div class="step"><strong>Step 5:</strong> User Service → Redis (Clear Session Cache)
+        <br>✓ Delete user session from cache:
+        <br>&nbsp;&nbsp;<code>DEL session:user:123</code>
+        <br>✓ Clear any other user-specific cached data
+      </div>
+
+      <div class="step"><strong>Step 6:</strong> User Service → API Gateway → Client
+        <br>✓ Return response: <code>200 OK</code>
+        <br>Body: <code>{ message: "Logged out successfully" }</code>
+      </div>
+
+      <div class="step"><strong>Step 7:</strong> Client
+        <br>✓ Client deletes tokens from local storage
+        <br>✓ Redirects to login page
+      </div>
+
+      <div class="step"><strong>Step 8 (Future Request):</strong> Token Reuse Prevention
+        <br>✓ If client tries to use old token: <code>Authorization: Bearer eyJhbGciOi...</code>
+        <br>✓ API Gateway checks blacklist (Redis: <code>GET blacklist:eyJhbGciOi...</code>)
+        <br>✓ Finds token in blacklist → Returns <code>401 Unauthorized</code>
+        <br>✓ Client must login again to get new tokens
+      </div>
+
+      <p style="margin-top: 1rem; color: var(--line);"><strong>Key Points:</strong></p>
+      <ul style="margin-left: 1.5rem;">
+        <li><strong>Shared Library:</strong> Uses <code>shared/auth/blacklist.ts</code> for token blacklisting logic</li>
+        <li><strong>Redis Blacklist:</strong> Fast in-memory check prevents token reuse</li>
+        <li><strong>TTL Optimization:</strong> Blacklist entry expires when token would naturally expire (no storage waste)</li>
+        <li><strong>Database Cleanup:</strong> Refresh token deleted from PostgreSQL</li>
+        <li><strong>Session Cache:</strong> User session removed from Redis</li>
+        <li><strong>Security:</strong> Multi-layer invalidation ensures token cannot be reused</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h2>🔗 Shared Library Details (shared/auth/)</h2>
+
+    <h3>Purpose: Consistent authentication behavior across all services</h3>
+
+    <div class="example-box">
+      <h3>1. jwt.ts - JWT Token Management</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li><code>generateAccessToken(userId, email, role)</code> → Creates JWT with 15-min expiry</li>
+        <li><code>generateRefreshToken(userId)</code> → Creates refresh token with 7-day expiry</li>
+        <li><code>verifyToken(token)</code> → Validates JWT signature and expiry</li>
+        <li><strong>Used by:</strong> API Gateway (verify incoming requests), User Service (generate on login)</li>
+      </ul>
+
+      <h3>2. middleware.ts - Authentication Middleware</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li><code>authenticateToken(req, res, next)</code> → Express middleware for protected routes</li>
+        <li>Extracts JWT from <code>Authorization</code> header</li>
+        <li>Verifies token using <code>jwt.ts</code></li>
+        <li>Checks blacklist using <code>blacklist.ts</code></li>
+        <li>Attaches <code>req.user = { userId, email, role }</code> to request</li>
+        <li><strong>Used by:</strong> All services for protected endpoints</li>
+      </ul>
+
+      <h3>3. blacklist.ts - Token Blacklist Management</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li><code>addToBlacklist(token, expirySeconds)</code> → Add token to Redis with TTL</li>
+        <li><code>isBlacklisted(token)</code> → Check if token is revoked</li>
+        <li><code>removeFromBlacklist(token)</code> → Remove token (rarely used)</li>
+        <li><strong>Used by:</strong> API Gateway (check on every request), User Service (add on logout)</li>
+      </ul>
+
+      <h3>4. rateLimiter.ts - Rate Limiting Logic</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li><code>checkRateLimit(key, maxRequests, windowSeconds)</code> → Returns { allowed: boolean, remaining: number }</li>
+        <li>Uses Redis INCR with TTL: <code>INCR ratelimit:{key}</code></li>
+        <li>Example: Max 100 requests per minute per IP</li>
+        <li><strong>Used by:</strong> API Gateway (on every incoming request)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h2>🎯 Summary: Communication Patterns</h2>
+
+    <div class="example-box">
+      <h3>Synchronous Communication (REST APIs)</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li>Client ↔ API Gateway (all external requests)</li>
+        <li>API Gateway → Microservices (routing)</li>
+        <li>Order Service → User Service (validate user)</li>
+        <li>Order Service → Product Service (check inventory)</li>
+        <li>Order Service → Payment Service (process payment)</li>
+        <li><strong>When to use:</strong> Need immediate response, transactional operations</li>
+      </ul>
+
+      <h3>Asynchronous Communication (Message Queue)</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li>User Service → Queue → Notification Service (welcome email)</li>
+        <li>Order Service → Queue → Product Service (inventory update)</li>
+        <li>Order Service → Queue → Notification Service (order confirmation)</li>
+        <li>Payment Service → Queue → Notification Service (payment receipt)</li>
+        <li><strong>When to use:</strong> Fire-and-forget operations, decoupled services, background tasks</li>
+      </ul>
+
+      <h3>Shared Data Access</h3>
+      <ul style="margin-left: 1.5rem;">
+        <li><strong>Redis:</strong> All services read/write to shared cache (blacklist, rate limits, sessions)</li>
+        <li><strong>Shared Library:</strong> All services import <code>shared/auth/</code> for consistent auth behavior</li>
+        <li><strong>Monitoring:</strong> All services expose <code>/metrics</code> scraped by Prometheus</li>
+      </ul>
+    </div>
+  </div>
+
+</div>

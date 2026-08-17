@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import logger from '../../../shared/logger';
 import { errorHandler } from '../../../shared/errors';
-import { db, initDatabase } from './config/database';
+import { db, prisma, initDatabase, closeDatabases } from './config/database';
 import redisClient from '../../../shared/redis';
 import authRoutes from './routes/auth.routes';
 import internalRoutes from './routes/internal.routes';
@@ -108,7 +108,7 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
 
   server.close(async () => {
     logger.info('HTTP server closed');
-    await db.close();
+    await closeDatabases(); // Disconnects both Prisma and DatabasePool
     await redisClient.disconnect();
     logger.info('All connections closed');
     process.exit(0);
