@@ -4,6 +4,24 @@ This document explains **EVERY LINE** of the API Gateway server, comparing tutor
 
 ---
 
+## 🎯 Quick Revision Materials
+
+Looking to review without reading full explanations? Check out the **Revision Modules**:
+
+- **[📋 Interview Questions](revision/REVISION-INTERVIEW-QUESTIONS.md)** - 100 questions organized by category (no answers)
+- **[💻 Coding Exercises](revision/REVISION-CODING-EXERCISES.md)** - 11 hands-on exercises (no solutions)
+- **[🧪 Testing Exercises](revision/REVISION-TESTING-EXERCISES.md)** - 30 system tests (no expected outputs)
+- **[📖 Revision Guide](revision/README.md)** - How to use the revision materials
+
+**Use these for:**
+
+- Self-testing before checking answers
+- Pre-interview preparation (scan 100 questions in 30-60 minutes)
+- Daily practice drills
+- Identifying knowledge gaps
+
+---
+
 ## 📂 File: `services/api-gateway/src/server.js`
 
 This is the **ENTRY POINT** of the API Gateway. When you run `npm start`, Node.js executes this file.
@@ -19,6 +37,7 @@ require('dotenv').config();
 ```
 
 **What it does:**
+
 - Loads `.env` file into `process.env`
 - Must be FIRST line (before any other imports)
 
@@ -26,19 +45,21 @@ require('dotenv').config();
 
 ```javascript
 // ❌ Tutorial way
-const JWT_SECRET = "my-secret-key";  // Hardcoded - TERRIBLE!
+const JWT_SECRET = 'my-secret-key'; // Hardcoded - TERRIBLE!
 
 // ✅ Production way
 require('dotenv').config();
-const JWT_SECRET = process.env.JWT_SECRET;  // From .env file
+const JWT_SECRET = process.env.JWT_SECRET; // From .env file
 ```
 
 **Why production way is better:**
+
 - Secrets NEVER in code (Git would expose them!)
 - Different secrets per environment (dev/staging/prod)
 - Easy to rotate secrets (change .env, restart server)
 
 **Example `.env` file:**
+
 ```bash
 PORT=3000
 JWT_SECRET=super-long-random-secret-at-least-32-chars
@@ -47,6 +68,7 @@ USER_SERVICE_URL=http://localhost:3001
 ```
 
 **Interview Question:**
+
 > **Q:** "How do you manage secrets in production?"
 >
 > **A:** "I use environment variables loaded via dotenv in development, and AWS Secrets Manager in production. Secrets are never committed to Git. Each environment (dev/staging/prod) has its own secrets. I rotate secrets regularly and use separate signing keys for different purposes (JWT access vs refresh)."
@@ -71,19 +93,19 @@ const axios = require('axios');
 
 **Why each import matters:**
 
-| Import | Purpose | Production Reason |
-|--------|---------|-------------------|
-| `express` | Web framework | Industry standard, battle-tested at scale |
-| `helmet` | Security headers | Prevents XSS, clickjacking, MIME sniffing attacks |
-| `cors` | Cross-origin requests | Allows frontend (react.com) to call API (api.react.com) |
-| `uuid` | Unique IDs | Track requests across distributed services (distributed tracing) |
-| `logger` | Structured logging | Better than console.log - includes timestamps, levels, metadata |
-| `errorHandler` | Centralized errors | Consistent error format, hide internal details from clients |
-| `redisClient` | In-memory cache | Token blacklist, rate limiting, session storage |
-| `apiRateLimiter` | Rate limiting | Prevent DDoS, brute force attacks |
-| `routes` | Route handlers | Organize endpoints (auth routes, product routes, etc.) |
-| `services config` | Service registry | Map service names to URLs for proxying |
-| `axios` | HTTP client | Make requests to backend services |
+| Import            | Purpose               | Production Reason                                                |
+| ----------------- | --------------------- | ---------------------------------------------------------------- |
+| `express`         | Web framework         | Industry standard, battle-tested at scale                        |
+| `helmet`          | Security headers      | Prevents XSS, clickjacking, MIME sniffing attacks                |
+| `cors`            | Cross-origin requests | Allows frontend (react.com) to call API (api.react.com)          |
+| `uuid`            | Unique IDs            | Track requests across distributed services (distributed tracing) |
+| `logger`          | Structured logging    | Better than console.log - includes timestamps, levels, metadata  |
+| `errorHandler`    | Centralized errors    | Consistent error format, hide internal details from clients      |
+| `redisClient`     | In-memory cache       | Token blacklist, rate limiting, session storage                  |
+| `apiRateLimiter`  | Rate limiting         | Prevent DDoS, brute force attacks                                |
+| `routes`          | Route handlers        | Organize endpoints (auth routes, product routes, etc.)           |
+| `services config` | Service registry      | Map service names to URLs for proxying                           |
+| `axios`           | HTTP client           | Make requests to backend services                                |
 
 **Tutorial vs Production:**
 
@@ -97,17 +119,17 @@ app.listen(3000);
 
 // ✅ Production
 const express = require('express');
-const helmet = require('helmet');      // Security
-const logger = require('./logger');     // Logging
+const helmet = require('helmet'); // Security
+const logger = require('./logger'); // Logging
 const errorHandler = require('./errors'); // Error handling
 const rateLimit = require('./rateLimit'); // Rate limiting
 
 const app = express();
-app.use(helmet());                      // Add security headers
-app.use(logger);                        // Log every request
-app.use(rateLimit);                     // Prevent abuse
+app.use(helmet()); // Add security headers
+app.use(logger); // Log every request
+app.use(rateLimit); // Prevent abuse
 // ... routes ...
-app.use(errorHandler);                  // Handle errors gracefully
+app.use(errorHandler); // Handle errors gracefully
 ```
 
 ---
@@ -120,6 +142,7 @@ const PORT = process.env.PORT || 3000;
 ```
 
 **What happens:**
+
 1. `express()` creates the application instance
 2. `PORT` comes from environment (AWS will set this dynamically)
 
@@ -132,6 +155,7 @@ const PORT = process.env.PORT || 3000;
 ```
 
 **Interview Insight:**
+
 > In AWS ECS, the container port is dynamically assigned. Your app MUST read `process.env.PORT` or it won't receive traffic. Hardcoding `3000` breaks in production.
 
 ---
@@ -146,12 +170,14 @@ app.use(helmet());
 Sets HTTP headers to protect against common attacks.
 
 **Before Helmet:**
+
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
 ```
 
 **After Helmet:**
+
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -174,8 +200,9 @@ Content-Security-Policy: default-src 'self' ← Prevent XSS
 ```
 
 **Interview Question:**
+
 > **Q:** "What security headers do you set?"
->
+> e
 > **A:** "I use Helmet.js which sets 15+ security headers. Key ones: X-Content-Type-Options prevents MIME sniffing, X-Frame-Options prevents clickjacking, Content-Security-Policy prevents XSS by restricting script sources, and Strict-Transport-Security forces HTTPS. These are OWASP Top 10 defenses."
 
 ---
@@ -183,12 +210,14 @@ Content-Security-Policy: default-src 'self' ← Prevent XSS
 ### **Lines 21-26: CORS Configuration**
 
 ```javascript
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID']
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  })
+);
 ```
 
 **What is CORS?**
@@ -202,17 +231,19 @@ Cross-Origin Resource Sharing - security feature that blocks JavaScript from one
 // Backend:  https://api.myapp.com (different subdomain!)
 
 // Browser blocks this by default:
-fetch('https://api.myapp.com/users')
+fetch('https://api.myapp.com/users');
 // ❌ Error: CORS policy: No 'Access-Control-Allow-Origin' header
 ```
 
 **The Solution:**
 
 ```javascript
-app.use(cors({
-  origin: 'https://myapp.com',  // Only allow requests from this domain
-  credentials: true              // Allow cookies/auth headers
-}));
+app.use(
+  cors({
+    origin: 'https://myapp.com', // Only allow requests from this domain
+    credentials: true, // Allow cookies/auth headers
+  })
+);
 
 // Backend response now includes:
 // Access-Control-Allow-Origin: https://myapp.com
@@ -222,25 +253,26 @@ app.use(cors({
 **Production Configuration Breakdown:**
 
 ```javascript
-origin: process.env.CORS_ORIGIN || '*'
+origin: process.env.CORS_ORIGIN || '*';
 // Production: 'https://myapp.com' (only your frontend)
 // Development: '*' (allow all, for testing)
 
-credentials: true
+credentials: true;
 // Allows cookies and Authorization header
 // Required for JWT authentication
 
-methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
 // Which HTTP methods to allow
 // OPTIONS is for preflight requests
 
-allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID']
+allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'];
 // Which headers frontend can send
 // Authorization: For JWT tokens
 // X-Request-ID: For distributed tracing
 ```
 
 **Interview Question:**
+
 > **Q:** "Why is CORS needed?"
 >
 > **A:** "CORS is a browser security feature that prevents malicious sites from stealing data. Without CORS, evil.com could make requests to mybank.com using your cookies and steal your data. CORS ensures only trusted origins can access the API. In production, I set origin to the specific frontend domain, enable credentials for auth cookies, and whitelist only necessary headers and methods."
@@ -259,28 +291,30 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 ```javascript
 // Without body parser:
 app.post('/users', (req, res) => {
-  console.log(req.body);  // undefined ❌
+  console.log(req.body); // undefined ❌
 });
 
 // With body parser:
 app.post('/users', (req, res) => {
-  console.log(req.body);  // { name: "John", email: "john@test.com" } ✅
+  console.log(req.body); // { name: "John", email: "john@test.com" } ✅
 });
 ```
 
 **Two parsers needed:**
 
 1. **express.json()** - Parses JSON requests
+
 ```javascript
 // Handles:
 fetch('/api/users', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: "John" })
+  body: JSON.stringify({ name: 'John' }),
 });
 ```
 
 2. **express.urlencoded()** - Parses form submissions
+
 ```javascript
 // Handles:
 <form method="POST" action="/api/users">
@@ -316,6 +350,7 @@ user[name]=John&user[email]=test@test.com
 ```
 
 **Interview Question:**
+
 > **Q:** "Why do you need body parsers?"
 >
 > **A:** "HTTP request bodies come as raw bytes. Body parsers convert them to JavaScript objects. express.json() handles JSON payloads (most modern APIs), while express.urlencoded() handles form submissions (HTML forms). I set a 10MB limit as a security measure - it allows reasonable file uploads but prevents memory exhaustion from gigabyte-sized attack payloads."
@@ -387,20 +422,21 @@ Payment Service (forwards 550e8400)
 **Code breakdown:**
 
 ```javascript
-req.headers['x-request-id'] || uuidv4()
+req.headers['x-request-id'] || uuidv4();
 // If client sent X-Request-ID header, use it
 // Otherwise generate new UUID
 
-res.setHeader('X-Request-ID', req.id)
+res.setHeader('X-Request-ID', req.id);
 // Send ID back to client in response
 // Client can reference this ID when reporting issues!
 
-next()
+next();
 // Pass control to next middleware
 // Without this, request hangs forever!
 ```
 
 **Interview Question:**
+
 > **Q:** "How do you debug issues in microservices?"
 >
 > **A:** "I use request IDs for distributed tracing. Each request gets a unique UUID that's propagated across all services via X-Request-ID header. Every log entry includes this ID. When a user reports an issue, I can grep all service logs by that request ID and see the entire flow - which service it hit, how long each took, where it failed. This is essential for debugging distributed systems. In production, I'd use OpenTelemetry for automatic tracing."
@@ -423,7 +459,7 @@ app.use((req, res, next) => {
       duration: `${duration}ms`,
       ip: req.ip,
       userAgent: req.get('user-agent'),
-      userId: req.user?.userId
+      userId: req.user?.userId,
     });
   });
 
@@ -475,13 +511,13 @@ logger.info(`${req.method} ${req.path}`, { ... })
 ```javascript
 // If we log immediately:
 app.use((req, res, next) => {
-  logger.info('Request received');  // Don't know result yet!
+  logger.info('Request received'); // Don't know result yet!
   next();
 });
 
 app.get('/users', async (req, res) => {
   const users = await db.query('SELECT * FROM users');
-  res.json(users);  // Response happens LATER
+  res.json(users); // Response happens LATER
 });
 
 // Log shows "Request received" but:
@@ -520,6 +556,7 @@ app.get('/users', async (req, res) => {
 5. **Debugging** - Full request context
 
 **Interview Question:**
+
 > **Q:** "How do you monitor API performance?"
 >
 > **A:** "I log every request with structured metadata - request ID, method, path, status code, duration, user ID, and IP. This goes to CloudWatch Logs. I use CloudWatch Insights to query - 'show me P95 latency by endpoint', 'show me error rate by hour', 'which users are getting errors'. I set alarms on P99 latency > 1s and error rate > 1%. For deeper analysis, I'd use APM tools like DataDog or New Relic."
@@ -527,11 +564,13 @@ app.get('/users', async (req, res) => {
 ---
 
 I'll continue with the rest of the file in the next section. Should I continue with:
+
 - Lines 62-117: Health checks and rate limiting
 - Lines 119-138: Route registration
 - Lines 140-206: Graceful shutdown and error handling
 
 **Or would you like me to:**
+
 1. Stop here and test what we've learned so far?
 2. Create hands-on exercises for these concepts?
 3. Show you how to implement similar patterns?

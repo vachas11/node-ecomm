@@ -15,6 +15,7 @@ export interface UserDatabaseRow {
   role: 'admin' | 'customer' | 'vendor';
   is_active: boolean;
   email_verified: boolean;
+  avatar: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -28,6 +29,8 @@ export interface UserPublicData {
   role: string;
   isActive: boolean;
   emailVerified: boolean;
+  avatar: string | null;
+  avatarUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +43,7 @@ export class User {
   public readonly role: string;
   public readonly isActive: boolean;
   public readonly emailVerified: boolean;
+  public readonly avatar: string | null;
   public readonly createdAt: Date;
   public readonly updatedAt: Date;
 
@@ -51,6 +55,7 @@ export class User {
     this.role = data.role;
     this.isActive = data.is_active;
     this.emailVerified = data.email_verified;
+    this.avatar = data.avatar;
     this.createdAt = data.created_at;
     this.updatedAt = data.updated_at;
   }
@@ -64,6 +69,8 @@ export class User {
       role: this.role,
       isActive: this.isActive,
       emailVerified: this.emailVerified,
+      avatar: this.avatar,
+      avatarUrl: this.getAvatarUrl(),
       createdAt: this.createdAt,
       updatedAt: this.updatedAt
     };
@@ -88,6 +95,16 @@ export class User {
       'admin': 3
     };
     return (roleHierarchy[this.role] || 0) >= (roleHierarchy[requiredRole] || 0);
+  }
+
+  /**
+   * Get full avatar URL for API responses
+   * Returns null if no avatar is set
+   */
+  getAvatarUrl(): string | null {
+    if (!this.avatar) return null;
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+    return `${baseUrl}/uploads/avatars/${this.avatar}`;
   }
 
   static fromDatabase(row: UserDatabaseRow | null): User | null {

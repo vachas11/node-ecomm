@@ -42,8 +42,8 @@ export class UserRepository {
         passwordHash,
         firstName,
         lastName,
-        role
-      }
+        role,
+      },
     });
 
     return User.fromDatabase(this.toDatabaseRow(user));
@@ -52,7 +52,7 @@ export class UserRepository {
   // ✅ MIGRATED TO PRISMA - Simple SELECT by ID
   async findById(id: number): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
-      where: { id }
+      where: { id },
     });
 
     return user ? User.fromDatabase(this.toDatabaseRow(user)) : null;
@@ -61,7 +61,7 @@ export class UserRepository {
   // ✅ MIGRATED TO PRISMA - SELECT with password
   async findByIdWithPassword(id: number): Promise<UserDatabaseRow | null> {
     const user = await this.prisma.user.findUnique({
-      where: { id }
+      where: { id },
     });
 
     return user ? this.toDatabaseRow(user) : null;
@@ -70,7 +70,7 @@ export class UserRepository {
   // ✅ MIGRATED TO PRISMA - Simple SELECT by email
   async findByEmail(email: string): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     return user ? User.fromDatabase(this.toDatabaseRow(user)) : null;
@@ -79,7 +79,7 @@ export class UserRepository {
   // ✅ MIGRATED TO PRISMA - SELECT with password
   async findByEmailWithPassword(email: string): Promise<UserDatabaseRow | null> {
     const user = await this.prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     return user ? this.toDatabaseRow(user) : null;
@@ -90,8 +90,8 @@ export class UserRepository {
     const user = await this.prisma.user.findFirst({
       where: {
         id,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     return user ? User.fromDatabase(this.toDatabaseRow(user)) : null;
@@ -100,7 +100,7 @@ export class UserRepository {
   // ✅ MIGRATED TO PRISMA - EXISTS check
   async existsByEmail(email: string): Promise<boolean> {
     const count = await this.prisma.user.count({
-      where: { email }
+      where: { email },
     });
     return count > 0;
   }
@@ -110,8 +110,8 @@ export class UserRepository {
     const count = await this.prisma.user.count({
       where: {
         email,
-        id: { not: userId }
-      }
+        id: { not: userId },
+      },
     });
     return count > 0;
   }
@@ -128,8 +128,8 @@ export class UserRepository {
         ...(updates.firstName !== undefined && { firstName: updates.firstName }),
         ...(updates.lastName !== undefined && { lastName: updates.lastName }),
         ...(updates.email !== undefined && { email: updates.email }),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     return User.fromDatabase(this.toDatabaseRow(user));
@@ -141,8 +141,8 @@ export class UserRepository {
       where: { id },
       data: {
         passwordHash,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
     return result.count > 0;
   }
@@ -153,8 +153,8 @@ export class UserRepository {
       where: { id },
       data: {
         emailVerified: verified,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
     return result.count > 0;
   }
@@ -165,8 +165,8 @@ export class UserRepository {
       where: { id },
       data: {
         isActive: false,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
     return result.count > 0;
   }
@@ -177,8 +177,8 @@ export class UserRepository {
       where: { id },
       data: {
         isActive: true,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
     return result.count > 0;
   }
@@ -186,7 +186,7 @@ export class UserRepository {
   // ✅ MIGRATED TO PRISMA - DELETE
   async delete(id: number): Promise<boolean> {
     const result = await this.prisma.user.deleteMany({
-      where: { id }
+      where: { id },
     });
     return result.count > 0;
   }
@@ -208,18 +208,21 @@ export class UserRepository {
   async getUserActivityReport(
     startDate: Date,
     endDate: Date
-  ): Promise<Array<{
-    userId: number;
-    email: string;
-    firstName: string;
-    lastName: string;
-    orderCount: number;
-    totalSpent: number;
-    avgOrderValue: number;
-    spendingRank: number;
-    spendingPercentile: number;
-  }>> {
-    const result = await this.db.query(`
+  ): Promise<
+    Array<{
+      userId: number;
+      email: string;
+      firstName: string;
+      lastName: string;
+      orderCount: number;
+      totalSpent: number;
+      avgOrderValue: number;
+      spendingRank: number;
+      spendingPercentile: number;
+    }>
+  > {
+    const result = await this.db.query(
+      `
       WITH user_orders AS (
         -- Aggregate orders per user
         SELECT
@@ -250,7 +253,9 @@ export class UserRepository {
       WHERE order_count > 0
       ORDER BY total_spent DESC
       LIMIT 100
-    `, [startDate, endDate]);
+    `,
+      [startDate, endDate]
+    );
 
     return result.rows;
   }
@@ -270,15 +275,18 @@ export class UserRepository {
 
     // Build VALUES clause: ($1, $2), ($3, $4), ...
     const values = updates.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(', ');
-    const params = updates.flatMap(u => [u.id, u.role]);
+    const params = updates.flatMap((u) => [u.id, u.role]);
 
-    await this.db.query(`
+    await this.db.query(
+      `
       UPDATE users
       SET role = v.role,
           updated_at = CURRENT_TIMESTAMP
       FROM (VALUES ${values}) AS v(id, role)
       WHERE users.id = v.id::int
-    `, params);
+    `,
+      params
+    );
   }
 
   /**
@@ -289,12 +297,14 @@ export class UserRepository {
    *
    * @returns Monthly cohort data with retention rates
    */
-  async getCohortAnalysis(): Promise<Array<{
-    cohortMonth: string;
-    totalUsers: number;
-    activeUsers: number;
-    retentionRate: number;
-  }>> {
+  async getCohortAnalysis(): Promise<
+    Array<{
+      cohortMonth: string;
+      totalUsers: number;
+      activeUsers: number;
+      retentionRate: number;
+    }>
+  > {
     const result = await this.db.query(`
       WITH cohorts AS (
         -- Group users by signup month
@@ -343,7 +353,8 @@ export class UserRepository {
     searchTerm: string,
     limit: number = 20
   ): Promise<Array<{ user: User; relevance: number }>> {
-    const result = await this.db.query<UserDatabaseRow & { relevance: number }>(`
+    const result = await this.db.query<UserDatabaseRow & { relevance: number }>(
+      `
       SELECT
         u.*,
         ts_rank(
@@ -356,11 +367,13 @@ export class UserRepository {
         AND u.is_active = true
       ORDER BY relevance DESC, u.first_name ASC
       LIMIT $2
-    `, [searchTerm, limit]);
+    `,
+      [searchTerm, limit]
+    );
 
-    return result.rows.map(row => ({
+    return result.rows.map((row) => ({
       user: User.fromDatabase(row)!,
-      relevance: row.relevance
+      relevance: row.relevance,
     }));
   }
 
@@ -372,12 +385,14 @@ export class UserRepository {
    *
    * @returns User segments with counts and average values
    */
-  async getUserSegmentation(): Promise<Array<{
-    segment: string;
-    userCount: number;
-    avgLifetimeValue: number;
-    avgOrderCount: number;
-  }>> {
+  async getUserSegmentation(): Promise<
+    Array<{
+      segment: string;
+      userCount: number;
+      avgLifetimeValue: number;
+      avgOrderCount: number;
+    }>
+  > {
     const result = await this.db.query(`
       WITH user_ltv AS (
         SELECT
@@ -435,7 +450,7 @@ export class UserRepository {
       is_active: user.isActive,
       email_verified: user.emailVerified,
       created_at: user.createdAt,
-      updated_at: user.updatedAt
+      updated_at: user.updatedAt,
     };
   }
 }
